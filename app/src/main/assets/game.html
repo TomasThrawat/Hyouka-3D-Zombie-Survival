@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Hyouka: Nightfall</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:Arial,sans-serif;touch-action:none}
+#game{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at center,#101010 0,#030303 65%,#000 100%);z-index:5}
+.hidden{display:none!important}
+h1{font-size:clamp(34px,7vw,72px);letter-spacing:5px;margin:0 0 8px}
+.sub{opacity:.65;letter-spacing:2px;margin-bottom:36px}
+button{border:1px solid #555;background:#111;color:#fff;border-radius:12px;padding:15px 34px;font-size:18px;font-weight:700}
+button:active{background:#292929}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:3}
+#top{position:absolute;left:18px;right:18px;top:15px;display:flex;justify-content:space-between;font-weight:700;text-shadow:0 2px 4px #000}
+#objective{position:absolute;left:50%;top:18px;transform:translateX(-50%);font-size:14px;opacity:.9}
+#health{width:160px;height:10px;border:1px solid #aaa;border-radius:8px;overflow:hidden;margin-top:8px}
+#hp{height:100%;width:100%;background:#fff}
+#controls{position:fixed;inset:0;z-index:4;pointer-events:none}
+#stick{position:absolute;left:24px;bottom:24px;width:132px;height:132px;border:2px solid #777;border-radius:50%;background:#0008;pointer-events:auto}
+#knob{position:absolute;left:39px;top:39px;width:50px;height:50px;border-radius:50%;background:#fff}
+#run{position:absolute;right:28px;bottom:40px;width:88px;height:88px;border-radius:50%;padding:0;background:#fff;color:#000;pointer-events:auto}
+#hint{position:absolute;right:18px;top:55px;opacity:.55;font-size:12px}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="menu" class="screen">
+  <h1>HYOUKA</h1><div class="sub">NIGHTFALL</div>
+  <button id="start">START SURVIVAL</button>
+  <div style="margin-top:18px;opacity:.5;font-size:12px">3D survival • touch controls • offline UI</div>
+</div>
+<div id="end" class="screen hidden">
+  <h1 id="endTitle">SAFE</h1><div id="endText" class="sub"></div><button id="again">PLAY AGAIN</button>
+</div>
+<div id="hud" class="hidden">
+  <div id="top"><div><div>HEALTH</div><div id="health"><div id="hp"></div></div></div><div id="score">SUPPLIES 0/3</div></div>
+  <div id="objective">COLLECT THE SUPPLIES AND REACH THE SAFEHOUSE</div>
+</div>
+<div id="controls" class="hidden">
+  <div id="stick"><div id="knob"></div></div><button id="run">RUN</button>
+  <div id="hint">Avoid infected • collect 3 supplies</div>
+</div>
+<div id="flash"></div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+import {GLTFLoader} from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js";
+
+const ASSETS={
+  world:"https://cdn.3dassets.dev/assets/27331/v1/model.glb",
+  zombieA:"https://cdn.3dassets.dev/assets/32707/v1/model.glb",
+  zombieB:"https://cdn.3dassets.dev/assets/32708/v1/model.glb",
+  zombieC:"https://cdn.3dassets.dev/assets/32706/v1/model.glb",
+  crate:"https://cdn.3dassets.dev/assets/19359/v1/model.glb"
+};
+
+let scene,camera,renderer,clock,loader;
+let player,zombies=[],supplies=[],world=null;
+let running=false,health=100,collected=0,lastDamage=0;
+const keys={x:0,y:0,run:false};
+const menu=document.getElementById("menu"),hud=document.getElementById("hud"),controls=document.getElementById("controls"),end=document.getElementById("end");
+const hp=document.getElementById("hp"),score=document.getElementById("score"),flash=document.getElementById("flash");
+
+function sound(freq,dur=.07){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+    const a=new C(),o=a.createOscillator(),g=a.createGain();
+    o.frequency.value=freq;o.type="square";g.gain.value=.035;o.connect(g);g.connect(a.destination);
+    o.start();g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+dur);o.stop(a.currentTime+dur);
+  }catch(_){}
+}
+function makePlayer(){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,1.0,5,10),new THREE.MeshStandardMaterial({color:0xdddddd,roughness:.9}));
+  body.position.y=.8;g.add(body);
+  const light=new THREE.PointLight(0xffffff,3,5);light.position.set(0,1.5,.2);g.add(light);
+  return g;
+}
+async function load(url){
+  return new Promise((resolve,reject)=>loader.load(url,g=>resolve(g),undefined,()=>reject()));
+}
+function addFallbackZombie(pos){
+  const g=new THREE.Group();
+  const m=new THREE.Mesh(new THREE.CapsuleGeometry(.35,1.1,4,8),new THREE.MeshStandardMaterial({color:0x777777,roughness:1}));
+  m.position.y=.85;g.add(m);g.position.copy(pos);scene.add(g);return g;
+}
+async function addZombie(url,pos){
+  try{
+    const g=(await load(url)).scene;
+    g.position.copy(pos);g.scale.setScalar(.9);scene.add(g);
+    (g.userData.mixers??=[]).push(new THREE.AnimationMixer(g));
+    const clips=(await load(url)).animations||[];
+    if(clips.length)g.userData.mixers[0].clipAction(clips[0]).play();
+    zombies.push(g);
+  }catch(_){zombies.push(addFallbackZombie(pos))}
+}
+async function addSupply(pos){
+  try{
+    const g=(await load(ASSETS.crate)).scene;g.position.copy(pos);g.scale.setScalar(.7);scene.add(g);supplies.push(g);
+  }catch(_){
+    const g=new THREE.Mesh(new THREE.BoxGeometry(.8,.8,.8),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x333333}));
+    g.position.copy(pos);scene.add(g);supplies.push(g);
+  }
+}
+async function setup(){
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x020305);scene.fog=new THREE.FogExp2(0x020305,.018);
+  camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,250);
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;
+  document.getElementById("game").appendChild(renderer.domElement);
+  scene.add(new THREE.HemisphereLight(0x8899aa,0x111111,1.6));
+  const moon=new THREE.DirectionalLight(0xffffff,2.0);moon.position.set(8,15,4);moon.castShadow=true;scene.add(moon);
+  loader=new GLTFLoader();clock=new THREE.Clock();
+  player=makePlayer();player.position.set(0,0,8);scene.add(player);
+  try{world=(await load(ASSETS.world)).scene;scene.add(world)}catch(_){
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.MeshStandardMaterial({color:0x101214,roughness:1}));
+    ground.rotation.x=-Math.PI/2;scene.add(ground);
+  }
+  await Promise.all([
+    addZombie(ASSETS.zombieA,new THREE.Vector3(-7,0,-7)),
+    addZombie(ASSETS.zombieB,new THREE.Vector3(7,0,-8)),
+    addZombie(ASSETS.zombieC,new THREE.Vector3(10,0,3)),
+    addSupply(new THREE.Vector3(-8,0,6)),
+    addSupply(new THREE.Vector3(6,0,0)),
+    addSupply(new THREE.Vector3(-3,0,-9))
+  ]);
+}
+function reset(){
+  health=100;collected=0;lastDamage=0;
+  player.position.set(0,0,8);
+  supplies.forEach((s,i)=>{s.visible=true;s.userData.taken=false});
+  score.textContent="SUPPLIES 0/3";hp.style.width="100%";
+}
+function finish(win){
+  running=false;hud.classList.add("hidden");controls.classList.add("hidden");end.classList.remove("hidden");
+  document.getElementById("endTitle").textContent=win?"SAFE":"OVERRUN";
+  document.getElementById("endText").textContent=win?"You reached the safehouse.":"The infected caught you.";
+  sound(win?880:120,.18);
+}
+function update(dt){
+  if(!running)return;
+  const speed=keys.run?5.2:2.8;
+  const v=new THREE.Vector3(keys.x,0,keys.y);
+  if(v.lengthSq()>0)v.normalize().multiplyScalar(speed*dt);
+  player.position.add(v);
+  player.position.x=THREE.MathUtils.clamp(player.position.x,-14,14);
+  player.position.z=THREE.MathUtils.clamp(player.position.z,-14,14);
+  if(v.lengthSq()>0)player.rotation.y=Math.atan2(v.x,v.z);
+  const t=performance.now();
+  for(const z of zombies){
+    if(!z.visible)continue;
+    const d=z.position.distanceTo(player.position);
+    if(d<14){
+      const dir=player.position.clone().sub(z.position);dir.y=0;
+      if(dir.lengthSq()>0)z.position.add(dir.normalize().multiplyScalar(Math.min(dt*1.25,d)));
+      if(d<1.25&&t-lastDamage>700){health=Math.max(0,health-9);lastDamage=t;flash.style.opacity=".18";setTimeout(()=>flash.style.opacity="0",80);sound(90,.05)}
+    }
+    z.userData.mixers?.forEach(m=>m.update(dt));
+  }
+  for(const s of supplies){
+    if(!s.visible)continue;
+    s.rotation.y+=dt;
+    if(s.position.distanceTo(player.position)<1.4){s.visible=false;collected++;score.textContent="SUPPLIES "+collected+"/3";sound(620,.08)}
+  }
+  hp.style.width=health+"%";
+  if(health<=0){finish(false);return}
+  if(collected===3&&player.position.distanceTo(new THREE.Vector3(0,0,8))<2.0)finish(true);
+  camera.position.lerp(new THREE.Vector3(player.position.x,7,player.position.z+10),.08);
+  camera.lookAt(player.position.x,0,player.position.z);
+}
+function frame(){
+  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);update(dt);renderer.render(scene,camera);
+}
+function setStick(e){
+  const r=document.getElementById("stick").getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  const p=e.touches?e.touches[0]:e,dx=p.clientX-cx,dy=p.clientY-cy,max=46,len=Math.min(Math.hypot(dx,dy),max),a=Math.atan2(dy,dx);
+  keys.x=Math.cos(a)*len/max;keys.y=Math.sin(a)*len/max;
+  document.getElementById("knob").style.transform="translate("+keys.x*46+"px,"+keys.y*46+"px)";
+}
+const stick=document.getElementById("stick");
+stick.addEventListener("touchstart",e=>{e.preventDefault();setStick(e)},{passive:false});
+stick.addEventListener("touchmove",e=>{e.preventDefault();setStick(e)},{passive:false});
+["touchend","touchcancel"].forEach(x=>stick.addEventListener(x,()=>{keys.x=keys.y=0;document.getElementById("knob").style.transform=""},{passive:true}));
+const run=document.getElementById("run");
+run.addEventListener("touchstart",e=>{e.preventDefault();keys.run=true},{passive:false});
+["touchend","touchcancel"].forEach(x=>run.addEventListener(x,()=>keys.run=false));
+document.getElementById("start").onclick=async()=>{menu.classList.add("hidden");hud.classList.remove("hidden");controls.classList.remove("hidden");reset();running=true;sound(520,.1)};
+document.getElementById("again").onclick=()=>{end.classList.add("hidden");hud.classList.remove("hidden");controls.classList.remove("hidden");reset();running=true;sound(520,.1)};
+addEventListener("resize",()=>{if(!camera)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+await setup();frame();
+</script>
+</body>
+</html>
