@@ -73,7 +73,6 @@ fun ZombieGameScreen(
     val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
     val prop = rememberModelInstance(modelLoader, PROP_MODEL)
 
-    var renderFrameCount by remember { mutableIntStateOf(0) }
     var viewportWidth by remember { mutableIntStateOf(0) }
     var viewportHeight by remember { mutableIntStateOf(0) }
     var lastPollState by remember { mutableStateOf("") }
@@ -91,19 +90,23 @@ fun ZombieGameScreen(
     }
 
     LaunchedEffect(Unit) {
-        repeat(60) { index ->
+        var tick = 0
+        while (true) {
             delay(500)
             val state = "player=" + (player != null) + ",zombie=" + (zombie != null) + ",prop=" + (prop != null)
-            if (state != lastPollState || index % 4 == 0) {
+            if (state != lastPollState || tick % 4 == 0) {
                 lastPollState = state
-                onLog("MODEL_POLL index=" + index + " elapsedMs=" + ((index + 1) * 500) + " " + state)
+                onLog("MODEL_POLL tick=" + tick + " elapsedMs=" + ((tick + 1) * 500) + " " + state)
             }
             if (player != null && zombie != null && prop != null) {
-                onLog("MODEL_POLL_COMPLETE index=" + index)
-                return@LaunchedEffect
+                onLog("MODEL_POLL_COMPLETE tick=" + tick)
+                break
+            }
+            if (tick++ >= 59) {
+                onLog("MODEL_POLL_TIMEOUT elapsedMs=30000")
+                break
             }
         }
-        onLog("MODEL_POLL_TIMEOUT elapsedMs=30000")
     }
 
     LaunchedEffect(player, zombie, prop) {
@@ -130,13 +133,7 @@ fun ZombieGameScreen(
             isOpaque = true,
             isRendering = true,
             autoCenterContent = true,
-            autoFitContent = false,
-            onFrame = { _ ->
-                renderFrameCount++
-                if (renderFrameCount == 1 || renderFrameCount % 60 == 0) {
-                    onLog("RENDER_FRAME count=" + renderFrameCount + " viewport=" + viewportWidth + "x" + viewportHeight)
-                }
-            }
+            autoFitContent = false
         ) {
             player?.let { ModelNode(modelInstance = it, scaleToUnits = 1.8f, autoAnimate = true) }
             zombie?.let { ModelNode(modelInstance = it, scaleToUnits = 1.8f, autoAnimate = true) }
