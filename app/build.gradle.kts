@@ -11,8 +11,8 @@ android {
         applicationId = "com.tomasthrawat.hyouka3dzombie"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
     }
 
     compileOptions {
