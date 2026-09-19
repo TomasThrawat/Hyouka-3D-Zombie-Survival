@@ -1,7 +1,6 @@
 package com.tomasthrawat.hyouka3dzombie
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,10 +14,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
 import io.github.sceneview.node.ModelNode
+import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.rememberModelLoader
@@ -47,37 +46,34 @@ fun ZombieGameScreen(
 
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
+    val cameraManipulator = rememberCameraManipulator()
+
     val player = rememberModelInstance(modelLoader, PLAYER_MODEL)
     val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
     val prop = rememberModelInstance(modelLoader, PROP_MODEL)
 
     var yaw by remember { mutableFloatStateOf(0f) }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectDragGestures { _, dragAmount ->
-                    yaw += dragAmount.x * 0.18f
-                }
-            }
-    ) {
+    Box(Modifier.fillMaxSize()) {
         SceneView(
             modifier = Modifier.fillMaxSize(),
             engine = engine,
             modelLoader = modelLoader,
-            autoCenterContent = false
+            cameraManipulator = cameraManipulator,
+            autoCenterContent = true
         ) {
             player?.let {
                 ModelNode(
                     modelInstance = it,
-                    scaleToUnits = 1.8f
+                    scaleToUnits = 1.8f,
+                    autoAnimate = true
                 )
             }
             zombie?.let {
                 ModelNode(
                     modelInstance = it,
-                    scaleToUnits = 1.8f
+                    scaleToUnits = 1.8f,
+                    autoAnimate = true
                 )
             }
             prop?.let {
