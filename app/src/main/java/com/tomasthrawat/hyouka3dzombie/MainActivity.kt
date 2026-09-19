@@ -1,61 +1,76 @@
 package com.tomasthrawat.hyouka3dzombie
 
+import android.content.ContentValues
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private const val TAG = "Hyouka3D"
 
 class MainActivity : ComponentActivity() {
     private var game by mutableStateOf(false)
+    private var diagnosticUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.i(TAG, "APP_ON_CREATE sdk=${android.os.Build.VERSION.SDK_INT} device=${android.os.Build.MODEL} manufacturer=${android.os.Build.MANUFACTURER}")
+        diagnosticUri = createDiagnosticFile()
+        writeLog("APP_ON_CREATE sdk=${android.os.Build.VERSION.SDK_INT} device=${android.os.Build.MODEL} manufacturer=${android.os.Build.MANUFACTURER}")
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e(TAG, "UNCAUGHT_EXCEPTION thread=${thread.name}", throwable)
-            val previous = Thread.getDefaultUncaughtExceptionHandler()
-            if (previous != null && previous !== Thread.getDefaultUncaughtExceptionHandler()) {
-                previous.uncaughtException(thread, throwable)
-            } else {
-                android.os.Process.killProcess(android.os.Process.myPid())
-            }
+            writeLog("UNCAUGHT_EXCEPTION thread=${thread.name}\n${Log.getStackTraceString(throwable)}")
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
-
         window.decorView.systemUiVisibility = 5894
-        Log.i(TAG, "WINDOW_CONFIG landscape immersive flags=5894")
+        writeLog("WINDOW_CONFIG immersive_flags=5894")
         setContent {
-            Log.d(TAG, "COMPOSE_CONTENT game=$game")
             ZombieGameScreen(
                 playing = game,
-                onStart = {
-                    Log.i(TAG, "MENU_START clicked")
-                    game = true
-                },
-                onExit = {
-                    Log.i(TAG, "GAME_MENU clicked")
-                    game = false
-                }
+                onStart = { writeLog("MENU_START_CLICKED"); game = true },
+                onExit = { writeLog("GAME_MENU_CLICKED"); game = false },
+                onLog = ::writeLog
             )
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.i(TAG, "APP_ON_RESUME")
+    private fun createDiagnosticFile(): Uri? {
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, "Hyouka3D-Zombie-Diagnostics.log")
+                put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            Log.i(TAG, "DIAGNOSTIC_FILE_CREATED uri=$uri")
+            uri
+        } catch (t: Throwable) {
+            Log.e(TAG, "DIAGNOSTIC_FILE_CREATE_FAILED", t)
+            null
+        }
     }
 
-    override fun onPause() {
-        Log.i(TAG, "APP_ON_PAUSE")
-        super.onPause()
+    fun writeLog(message: String) {
+        val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
+        val line = "$stamp | $message\n"
+        Log.i(TAG, message)
+        try {
+            diagnosticUri?.let { uri ->
+                contentResolver.openOutputStream(uri, "wa")?.use { it.write(line.toByteArray(Charsets.UTF_8)) }
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "DIAGNOSTIC_FILE_WRITE_FAILED", t)
+        }
     }
 
-    override fun onDestroy() {
-        Log.i(TAG, "APP_ON_DESTROY")
-        super.onDestroy()
-    }
+    override fun onResume() { super.onResume(); writeLog("APP_ON_RESUME") }
+    override fun onPause() { writeLog("APP_ON_PAUSE"); super.onPause() }
+    override fun onDestroy() { writeLog("APP_ON_DESTROY"); super.onDestroy() }
 }
