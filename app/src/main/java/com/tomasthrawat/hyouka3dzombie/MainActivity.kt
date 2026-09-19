@@ -5,7 +5,6 @@ import android.app.Activity
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebChromeClient
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
@@ -13,6 +12,7 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
@@ -32,10 +32,19 @@ class MainActivity : Activity() {
             allowFileAccess = true
             allowContentAccess = true
             mediaPlaybackRequiresUserGesture = false
-            cacheMode = WebSettings.LOAD_DEFAULT
+            cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         }
+
         setContentView(web)
-        web.loadUrl("file:///android_asset/game.html")
+
+        val html = assets.open("game.html").bufferedReader().use { it.readText() }
+        web.loadDataWithBaseURL(
+            "https://hyouka.local/",
+            html,
+            "text/html",
+            "UTF-8",
+            null
+        )
     }
 
     override fun onDestroy() {
