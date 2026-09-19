@@ -1,7 +1,12 @@
 package com.tomasthrawat.hyouka3dzombie
 
+import android.app.ActivityManager
 import android.content.ContentValues
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -25,14 +30,33 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         diagnosticUri = createDiagnosticFile()
-        writeLog("APP_ON_CREATE sdk=${android.os.Build.VERSION.SDK_INT} device=${android.os.Build.MODEL} manufacturer=${android.os.Build.MANUFACTURER}")
+        writeLog("DIAGNOSTIC_FILE uri=" + diagnosticUri)
+        writeLog(
+            "APP_ON_CREATE sdk=" + Build.VERSION.SDK_INT +
+                " release=" + Build.VERSION.RELEASE +
+                " device=" + Build.MODEL +
+                " manufacturer=" + Build.MANUFACTURER +
+                " brand=" + Build.BRAND +
+                " hardware=" + Build.HARDWARE +
+                " product=" + Build.PRODUCT
+        )
+        writeLog("DEVICE_ABI supported=" + Build.SUPPORTED_ABIS.joinToString(","))
+        writeSystemDiagnostics()
+        writeNetworkDiagnostics()
+
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            writeLog("UNCAUGHT_EXCEPTION thread=${thread.name}\n${Log.getStackTraceString(throwable)}")
+            writeLog(
+                "UNCAUGHT_EXCEPTION thread=" + thread.name +
+                    " type=" + throwable::class.java.name + "\n" +
+                    Log.getStackTraceString(throwable)
+            )
             android.os.Process.killProcess(android.os.Process.myPid())
         }
+
         window.decorView.systemUiVisibility = 5894
         window.addFlags(Window.FEATURE_NO_TITLE)
         writeLog("WINDOW_CONFIG immersive_flags=5894")
+
         setContent {
             ZombieGameScreen(
                 playing = game,
@@ -55,21 +79,76 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() { super.onResume(); writeLog("APP_ON_RESUME") }
+    override fun onResume() {
+        super.onResume()
+        writeLog("APP_ON_RESUME")
+        writeSystemDiagnostics()
+        writeNetworkDiagnostics()
+    }
 
     override fun onPause() {
-        writeLog("APP_ON_PAUSE isFinishing=$isFinishing")
+        writeLog("APP_ON_PAUSE isFinishing=" + isFinishing)
         super.onPause()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        writeLog("WINDOW_FOCUS hasFocus=$hasFocus isFinishing=$isFinishing")
+        writeLog(
+            "WINDOW_FOCUS hasFocus=" + hasFocus +
+                " isFinishing=" + isFinishing +
+                " visibility=" + window.decorView.visibility
+        )
     }
 
     override fun onDestroy() {
-        writeLog("APP_ON_DESTROY isFinishing=$isFinishing")
+        writeLog("APP_ON_DESTROY isFinishing=" + isFinishing)
         super.onDestroy()
+    }
+
+    private fun writeSystemDiagnostics() {
+        try {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val info = ActivityManager.MemoryInfo()
+            am.getMemoryInfo(info)
+            val glEs = am.deviceConfigurationInfo.glEsVersion
+            writeLog(
+                "SYSTEM_DIAGNOSTICS glEs=" + glEs +
+                    " ramTotal=" + info.totalMem +
+                    " ramAvailable=" + info.availMem +
+                    " lowMemory=" + info.lowMemory +
+                    " threshold=" + info.threshold
+            )
+            writeLog(
+                "DISPLAY_DIAGNOSTICS size=" + resources.displayMetrics.widthPixels + "x" +
+                    resources.displayMetrics.heightPixels +
+                    " density=" + resources.displayMetrics.density +
+                    " densityDpi=" + resources.displayMetrics.densityDpi
+            )
+        } catch (t: Throwable) {
+            writeLog("SYSTEM_DIAGNOSTICS_FAILED type=" + t::class.java.name + "\n" + Log.getStackTraceString(t))
+        }
+    }
+
+    private fun writeNetworkDiagnostics() {
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork
+            val caps = network?.let(cm::getNetworkCapabilities)
+            val transports = buildList {
+                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) add("WIFI")
+                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) add("CELLULAR")
+                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true) add("ETHERNET")
+                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) add("VPN")
+            }
+            writeLog(
+                "NETWORK_DIAGNOSTICS connected=" + (caps != null) +
+                    " validated=" + (caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) +
+                    " internet=" + (caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) +
+                    " transports=" + transports.joinToString(",")
+            )
+        } catch (t: Throwable) {
+            writeLog("NETWORK_DIAGNOSTICS_FAILED type=" + t::class.java.name + "\n" + Log.getStackTraceString(t))
+        }
     }
 
     private fun createDiagnosticFile(): Uri? {
@@ -86,14 +165,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Synchronized
     fun writeLog(message: String) {
         val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
-        val line = "$stamp | $message\n"
+        val line = stamp + " | " + message + "\n"
         Log.i(TAG, message)
         try {
             diagnosticUri?.let { uri ->
                 contentResolver.openOutputStream(uri, "wa")?.use {
                     it.write(line.toByteArray(Charsets.UTF_8))
+                    it.flush()
                 }
             }
         } catch (t: Throwable) {
