@@ -47,10 +47,7 @@ fun ZombieGameScreen(
     LaunchedEffect(playing) { onLog("SCREEN_STATE playing=" + playing) }
 
     if (!playing) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             Button(
                 onClick = {
                     onLog("MENU_START_CLICKED uptimeMs=" + SystemClock.uptimeMillis())
@@ -134,7 +131,7 @@ fun ZombieGameScreen(
             isRendering = true,
             autoCenterContent = true,
             autoFitContent = false,
-            onFrame = {
+            onFrame = { _ ->
                 renderFrameCount++
                 if (renderFrameCount == 1 || renderFrameCount % 60 == 0) {
                     onLog("RENDER_FRAME count=" + renderFrameCount + " viewport=" + viewportWidth + "x" + viewportHeight)
