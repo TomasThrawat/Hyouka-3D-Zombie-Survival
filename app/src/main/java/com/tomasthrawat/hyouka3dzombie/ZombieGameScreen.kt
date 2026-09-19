@@ -71,7 +71,13 @@ fun ZombieGameScreen(
     val environment = rememberEnvironment(environmentLoader) {
         createEnvironment(environmentLoader)
     }
-    val cameraManipulator = rememberCameraManipulator()
+
+    // SceneView 4.36 fixes frame scheduling when nodes are attached to a live scene.
+    // Give the main camera an explicit orbit radius so it never starts at the origin.
+    val cameraManipulator = rememberCameraManipulator(
+        orbitRadius = 6.0f
+    )
+
     val mainLightNode = rememberMainLightNode(engine) {
         intensity = 100_000f
     }
@@ -85,13 +91,14 @@ fun ZombieGameScreen(
 
     LaunchedEffect(Unit) {
         onLog("GAME_RENDER_BEGIN")
-        onLog("RENDER_MODE=sceneview_bundled_assets_default_camera")
+        onLog("RENDER_MODE=sceneview_4_36_bundled_assets")
+        onLog("SCENEVIEW_VERSION=4.36.0")
         onLog("MODEL_PATHS player=$PLAYER_MODEL zombie=$ZOMBIE_MODEL prop=$PROP_MODEL")
         onLog("ENVIRONMENT_READY")
         onLog("MAIN_LIGHT_READY intensity=100000")
         onLog("FILL_LIGHT_READY intensity=30000")
         onLog("SURFACE_TYPE=DEFAULT_SURFACE")
-        onLog("CAMERA_MODE=DEFAULT_MANIPULATOR")
+        onLog("CAMERA_MODE=ORBIT_RADIUS_6M")
     }
 
     LaunchedEffect(player, zombie, prop) {
