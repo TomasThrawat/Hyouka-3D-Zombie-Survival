@@ -12,6 +12,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.Window
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -31,86 +32,78 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         diagnosticUri = createDiagnosticFile()
-        writeLog("DIAGNOSTIC_FILE uri=$diagnosticUri")
-        writeLog("APP_ON_CREATE sdk=${Build.VERSION.SDK_INT} release=${Build.VERSION.RELEASE} device=${Build.MODEL} manufacturer=${Build.MANUFACTURER} brand=${Build.BRAND} hardware=${Build.HARDWARE} product=${Build.PRODUCT} fingerprint=${Build.FINGERPRINT}")
-        writeLog("PROCESS_DIAGNOSTICS pid=${android.os.Process.myPid()} uid=${android.os.Process.myUid()} thread=${Thread.currentThread().name} threadId=${Thread.currentThread().id}")
-        writeLog("DEVICE_ABI supported=${Build.SUPPORTED_ABIS.joinToString(",")}")
+        writeLog("DIAGNOSTIC_FILE uri=" + diagnosticUri)
+        writeLog("APP_ON_CREATE sdk=" + Build.VERSION.SDK_INT + " release=" + Build.VERSION.RELEASE + " device=" + Build.MODEL + " manufacturer=" + Build.MANUFACTURER + " product=" + Build.PRODUCT)
+        writeLog("DEVICE_ABI supported=" + Build.SUPPORTED_ABIS.joinToString(","))
         writeSystemDiagnostics()
         writeNetworkDiagnostics()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            writeLog("UNCAUGHT_EXCEPTION thread=${thread.name} type=${throwable::class.java.name}\n${Log.getStackTraceString(throwable)}")
+            writeLog("UNCAUGHT_EXCEPTION thread=" + thread.name + " type=" + throwable.javaClass.name + "\n" + Log.getStackTraceString(throwable))
             android.os.Process.killProcess(android.os.Process.myPid())
         }
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.decorView.systemUiVisibility = 5894
-        window.addFlags(Window.FEATURE_NO_TITLE)
-        writeWindowDiagnostics("AFTER_WINDOW_CONFIG")
+        writeLog("WINDOW_CONFIG immersive_flags=" + window.decorView.systemUiVisibility + " flags=" + window.attributes.flags + " keepScreenOn=true")
         setContent {
             ZombieGameScreen(
                 playing = game,
-                onStart = { if (!game) { writeLog("MENU_START_ACCEPTED"); game = true } else writeLog("MENU_START_IGNORED_ALREADY_PLAYING") },
+                onStart = { if (!game) { writeLog("MENU_START_ACCEPTED"); game = true } },
                 onExit = { if (game) { writeLog("GAME_MENU_ACCEPTED"); game = false } },
                 onLog = ::writeLog
             )
         }
     }
 
-    override fun onStart() { super.onStart(); writeLog("APP_ON_START isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations"); writeWindowDiagnostics("ON_START") }
-    override fun onResume() { super.onResume(); writeLog("APP_ON_RESUME isFinishing=$isFinishing game=$game"); writeWindowDiagnostics("ON_RESUME"); writeSystemDiagnostics(); writeNetworkDiagnostics() }
-    override fun onPause() { writeLog("APP_ON_PAUSE isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations game=$game"); writeWindowDiagnostics("ON_PAUSE"); super.onPause() }
-    override fun onStop() { writeLog("APP_ON_STOP isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations game=$game"); writeWindowDiagnostics("ON_STOP"); super.onStop() }
-    override fun onDestroy() { writeLog("APP_ON_DESTROY isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations game=$game"); super.onDestroy() }
-    override fun onUserLeaveHint() { writeLog("APP_ON_USER_LEAVE_HINT game=$game"); super.onUserLeaveHint() }
-    override fun onTrimMemory(level: Int) { writeLog("APP_ON_TRIM_MEMORY level=$level game=$game"); writeSystemDiagnostics(); super.onTrimMemory(level) }
-    override fun onSaveInstanceState(outState: Bundle) { writeLog("APP_ON_SAVE_INSTANCE_STATE game=$game"); super.onSaveInstanceState(outState) }
+    override fun onStart() { super.onStart(); writeLog("APP_ON_START isFinishing=" + isFinishing + " changing=" + isChangingConfigurations); writeWindowDiagnostics("ON_START") }
+    override fun onResume() { super.onResume(); writeLog("APP_ON_RESUME isFinishing=" + isFinishing + " game=" + game); writeWindowDiagnostics("ON_RESUME"); writeSystemDiagnostics() }
+    override fun onPause() { writeLog("APP_ON_PAUSE isFinishing=" + isFinishing + " changing=" + isChangingConfigurations + " game=" + game); writeWindowDiagnostics("ON_PAUSE"); super.onPause() }
+    override fun onStop() { writeLog("APP_ON_STOP isFinishing=" + isFinishing + " changing=" + isChangingConfigurations + " game=" + game); writeWindowDiagnostics("ON_STOP"); super.onStop() }
+    override fun onDestroy() { writeLog("APP_ON_DESTROY isFinishing=" + isFinishing + " changing=" + isChangingConfigurations + " game=" + game); super.onDestroy() }
+    override fun onUserLeaveHint() { writeLog("APP_ON_USER_LEAVE_HINT game=" + game); super.onUserLeaveHint() }
+    override fun onTrimMemory(level: Int) { writeLog("APP_ON_TRIM_MEMORY level=" + level + " game=" + game); writeSystemDiagnostics(); super.onTrimMemory(level) }
+    override fun onSaveInstanceState(outState: Bundle) { writeLog("APP_ON_SAVE_INSTANCE_STATE game=" + game); super.onSaveInstanceState(outState) }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         val changed = lastFocus == null || lastFocus != hasFocus
         lastFocus = hasFocus
-        writeLog("WINDOW_FOCUS hasFocus=$hasFocus changed=$changed isFinishing=$isFinishing visibility=${window.decorView.visibility} game=$game")
+        writeLog("WINDOW_FOCUS hasFocus=" + hasFocus + " changed=" + changed + " game=" + game)
         if (changed) writeWindowDiagnostics("FOCUS_CHANGED")
     }
 
-    override fun onWindowAttributesChanged(params: android.view.WindowManager.LayoutParams) {
+    override fun onWindowAttributesChanged(params: WindowManager.LayoutParams) {
         super.onWindowAttributesChanged(params)
-        writeLog("WINDOW_ATTRIBUTES_CHANGED type=${params.type} flags=${params.flags} format=${params.format} alpha=${params.alpha} dimAmount=${params.dimAmount} width=${params.width} height=${params.height}")
+        writeLog("WINDOW_ATTRIBUTES_CHANGED flags=" + params.flags + " format=" + params.format + " alpha=" + params.alpha + " dim=" + params.dimAmount + " size=" + params.width + "x" + params.height)
     }
 
     private fun writeWindowDiagnostics(reason: String) {
         try {
             val decor = window.decorView
             val root = decor.rootView
-            val dm = resources.displayMetrics
-            val bounds = if (Build.VERSION.SDK_INT >= 30) windowManager.currentWindowMetrics.bounds else null
             val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             val mem = ActivityManager.MemoryInfo().also(am::getMemoryInfo)
             val proc = ActivityManager.RunningAppProcessInfo().also(ActivityManager::getMyMemoryState)
-            writeLog("WINDOW_DIAGNOSTICS reason=$reason focus=${decor.hasWindowFocus()} visibility=${decor.visibility} attached=${decor.isAttachedToWindow} shown=${decor.isShown} width=${decor.width} height=${decor.height} rootWidth=${root.width} rootHeight=${root.height} density=${dm.density} densityDpi=${dm.densityDpi} windowBounds=${bounds ?: "n/a"} decorSystemUi=${decor.systemUiVisibility} windowFlags=${window.attributes.flags} processImportance=${proc.importance} processImportanceReasonCode=${proc.importanceReasonCode} memAvail=${mem.availMem} memThreshold=${mem.threshold} memLow=${mem.lowMemory}")
-        } catch (t: Throwable) { writeLog("WINDOW_DIAGNOSTICS_FAILED reason=$reason type=${t::class.java.name}\n${Log.getStackTraceString(t)}") }
+            writeLog("WINDOW_DIAGNOSTICS reason=" + reason + " focus=" + decor.hasWindowFocus() + " attached=" + decor.isAttachedToWindow + " shown=" + decor.isShown + " size=" + decor.width + "x" + decor.height + " root=" + root.width + "x" + root.height + " ui=" + decor.systemUiVisibility + " flags=" + window.attributes.flags + " importance=" + proc.importance + " memAvail=" + mem.availMem + " low=" + mem.lowMemory)
+        } catch (t: Throwable) { writeLog("WINDOW_DIAGNOSTICS_FAILED reason=" + reason + " type=" + t.javaClass.name + "\n" + Log.getStackTraceString(t)) }
     }
 
     private fun writeSystemDiagnostics() {
         try {
             val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             val info = ActivityManager.MemoryInfo().also(am::getMemoryInfo)
-            writeLog("SYSTEM_DIAGNOSTICS glEs=${am.deviceConfigurationInfo.glEsVersion} ramTotal=${info.totalMem} ramAvailable=${info.availMem} lowMemory=${info.lowMemory} threshold=${info.threshold} pssKb=${android.os.Debug.getPss()} nativeHeapAllocated=${android.os.Debug.getNativeHeapAllocatedSize()} nativeHeapFree=${android.os.Debug.getNativeHeapFreeSize()}")
-            writeLog("DISPLAY_DIAGNOSTICS size=${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels} density=${resources.displayMetrics.density} densityDpi=${resources.displayMetrics.densityDpi}")
-        } catch (t: Throwable) { writeLog("SYSTEM_DIAGNOSTICS_FAILED type=${t::class.java.name}\n${Log.getStackTraceString(t)}") }
+            writeLog("SYSTEM_DIAGNOSTICS glEs=" + am.deviceConfigurationInfo.glEsVersion + " ramTotal=" + info.totalMem + " ramAvailable=" + info.availMem + " lowMemory=" + info.lowMemory + " threshold=" + info.threshold + " pssKb=" + android.os.Debug.getPss() + " nativeHeapAllocated=" + android.os.Debug.getNativeHeapAllocatedSize() + " nativeHeapFree=" + android.os.Debug.getNativeHeapFreeSize())
+            writeLog("DISPLAY_DIAGNOSTICS size=" + resources.displayMetrics.widthPixels + "x" + resources.displayMetrics.heightPixels + " density=" + resources.displayMetrics.density + " dpi=" + resources.displayMetrics.densityDpi)
+        } catch (t: Throwable) { writeLog("SYSTEM_DIAGNOSTICS_FAILED type=" + t.javaClass.name + "\n" + Log.getStackTraceString(t)) }
     }
 
     private fun writeNetworkDiagnostics() {
         try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = cm.activeNetwork
-            val caps = network?.let(cm::getNetworkCapabilities)
-            val transports = buildList {
-                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) add("WIFI")
-                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) add("CELLULAR")
-                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true) add("ETHERNET")
-                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) add("VPN")
-            }
-            writeLog("NETWORK_DIAGNOSTICS connected=${caps != null} validated=${caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)} internet=${caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)} transports=${transports.joinToString(",")} network=$network")
-        } catch (t: Throwable) { writeLog("NETWORK_DIAGNOSTICS_FAILED type=${t::class.java.name}\n${Log.getStackTraceString(t)}") }
+            val n = cm.activeNetwork
+            val c = n?.let(cm::getNetworkCapabilities)
+            writeLog("NETWORK_DIAGNOSTICS connected=" + (c != null) + " validated=" + c?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) + " internet=" + c?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) + " wifi=" + c?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) + " network=" + n)
+        } catch (t: Throwable) { writeLog("NETWORK_DIAGNOSTICS_FAILED type=" + t.javaClass.name + "\n" + Log.getStackTraceString(t)) }
     }
 
     private fun createDiagnosticFile(): Uri? = try {
@@ -124,7 +117,7 @@ class MainActivity : ComponentActivity() {
 
     @Synchronized fun writeLog(message: String) {
         val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
-        val line = "$stamp | $message\n"
+        val line = stamp + " | " + message + "\n"
         Log.i(TAG, message)
         try { diagnosticUri?.let { uri -> contentResolver.openOutputStream(uri, "wa")?.use { it.write(line.toByteArray(Charsets.UTF_8)); it.flush() } } }
         catch (t: Throwable) { Log.e(TAG, "DIAGNOSTIC_FILE_WRITE_FAILED", t) }
