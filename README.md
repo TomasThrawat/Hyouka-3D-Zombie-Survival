@@ -1,23 +1,9 @@
 # Hyouka: Nightfall
 
-Native Kotlin Android 3D zombie-survival game.
+Native Kotlin Android 3D zombie survival game.
 
-## Runtime
-- Native Android Kotlin
-- OpenGL ES 2.0 renderer
-- No WebView
-- No HTML game layer
-- No telemetry, logging, tracing, or diagnostic files
+Version 3 replaces the cube-only OpenGL prototype with a native Filament/SceneView renderer. It is not a WebView or HTML game.
 
-## Gameplay
-- Main menu
-- First-person-style chase camera
-- Touch joystick movement
-- Touch fire control
-- Zombie AI and waves
-- Health and combat
-- Three supply objectives
-- Safehouse extraction
-- Game-over and replay flow
+The renderer uses real GLB models from the connected free 3D asset catalogue. Touch camera input is handled directly by Compose pointer events instead of queueing one render-thread event per touch move.
 
-Target: Android 12+ / ARM64 devices such as OPPO A73.
+No telemetry, logging, tracing, or diagnostic files are written by the app.

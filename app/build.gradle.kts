@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -11,8 +12,14 @@ android {
         applicationId = "com.tomasthrawat.hyouka3dzombie"
         minSdk = 28
         targetSdk = 36
-        versionCode = 2
-        versionName = "2.0"
+        versionCode = 3
+        versionName = "3.0"
+    }
+
+    buildFeatures { compose = true }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "2.2.21"
     }
 
     compileOptions {
@@ -20,12 +27,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.compose.ui:ui:1.9.1")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.9.1")
+    implementation("androidx.compose.material3:material3:1.3.2")
+    implementation("io.github.sceneview:sceneview:4.25.0")
 }
