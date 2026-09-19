@@ -5,6 +5,7 @@ plugins {
 }
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.URI
 
 android {
     namespace = "com.tomasthrawat.hyouka3dzombie"
@@ -14,8 +15,8 @@ android {
         applicationId = "com.tomasthrawat.hyouka3dzombie"
         minSdk = 28
         targetSdk = 36
-        versionCode = 8
-        versionName = "8.0"
+        versionCode = 9
+        versionName = "9.0"
     }
 
     buildFeatures { compose = true }
@@ -56,7 +57,7 @@ val prepareSceneAssets by tasks.registering {
             val targetFile = File(dir, name)
             if (!targetFile.exists() || targetFile.length() < 1024L) {
                 println("Downloading SceneView asset: " + name)
-                java.net.URI(url).toURL().openStream().use { input ->
+                URI(url).toURL().openStream().use { input ->
                     targetFile.outputStream().use { output -> input.copyTo(output) }
                 }
             }
