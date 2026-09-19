@@ -17,8 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
+import io.github.sceneview.createEnvironment
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
+import io.github.sceneview.rememberEnvironment
+import io.github.sceneview.rememberEnvironmentLoader
+import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.node.ModelNode
@@ -58,7 +62,14 @@ fun ZombieGameScreen(
 
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
+    val environmentLoader = rememberEnvironmentLoader(engine)
+    val environment = rememberEnvironment(environmentLoader) {
+        createEnvironment(environmentLoader)
+    }
     val cameraManipulator = rememberCameraManipulator()
+    val mainLightNode = rememberMainLightNode(engine) {
+        intensity = 100_000f
+    }
 
     val player = rememberModelInstance(modelLoader, PLAYER_MODEL)
     val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
@@ -68,8 +79,10 @@ fun ZombieGameScreen(
 
     LaunchedEffect(Unit) {
         onLog("GAME_RENDER_BEGIN")
-        onLog("RENDER_MODE=minimal_sceneview_default_camera")
+        onLog("RENDER_MODE=sceneview_environment_default_camera")
         onLog("MODEL_URLS player=" + PLAYER_MODEL + " zombie=" + ZOMBIE_MODEL + " prop=" + PROP_MODEL)
+        onLog("ENVIRONMENT_READY")
+        onLog("MAIN_LIGHT_READY intensity=100000")
     }
 
     LaunchedEffect(player, zombie, prop) {
@@ -89,10 +102,12 @@ fun ZombieGameScreen(
             modifier = Modifier.fillMaxSize(),
             engine = engine,
             modelLoader = modelLoader,
+            environment = environment,
+            mainLightNode = mainLightNode,
             cameraManipulator = cameraManipulator,
             isOpaque = true,
             autoCenterContent = true,
-            autoFitContent = true
+            autoFitContent = false
         ) {
             player?.let {
                 ModelNode(
