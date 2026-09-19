@@ -17,11 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
+import io.github.sceneview.SurfaceType
 import io.github.sceneview.createEnvironment
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberEnvironment
 import io.github.sceneview.rememberEnvironmentLoader
+import io.github.sceneview.rememberFillLightNode
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.rememberModelLoader
@@ -38,22 +40,11 @@ fun ZombieGameScreen(
     onExit: () -> Unit,
     onLog: (String) -> Unit
 ) {
-    LaunchedEffect(playing) {
-        onLog("SCREEN_STATE playing=" + playing)
-    }
+    LaunchedEffect(playing) { onLog("SCREEN_STATE playing=" + playing) }
 
     if (!playing) {
-        Box(
-            Modifier.fillMaxSize().background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
-            Button(
-                onClick = {
-                    onLog("MENU_START_CLICKED")
-                    onStart()
-                },
-                modifier = Modifier.padding(24.dp)
-            ) {
+        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            Button(onClick = { onLog("MENU_START_CLICKED"); onStart() }, modifier = Modifier.padding(24.dp)) {
                 Text("START SURVIVAL")
             }
         }
@@ -63,94 +54,53 @@ fun ZombieGameScreen(
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
-    val environment = rememberEnvironment(environmentLoader) {
-        createEnvironment(environmentLoader)
-    }
+    val environment = rememberEnvironment(environmentLoader) { createEnvironment(environmentLoader) }
     val cameraManipulator = rememberCameraManipulator()
-    val mainLightNode = rememberMainLightNode(engine) {
-        intensity = 100_000f
-    }
+    val mainLightNode = rememberMainLightNode(engine) { intensity = 100_000f }
+    val fillLightNode = rememberFillLightNode(engine) { intensity = 30_000f }
 
     val player = rememberModelInstance(modelLoader, PLAYER_MODEL)
     val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
     val prop = rememberModelInstance(modelLoader, PROP_MODEL)
 
-    var sceneReady by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) {
         onLog("GAME_RENDER_BEGIN")
-        onLog("RENDER_MODE=sceneview_environment_default_camera")
+        onLog("RENDER_MODE=sceneview_texture_surface")
         onLog("MODEL_URLS player=" + PLAYER_MODEL + " zombie=" + ZOMBIE_MODEL + " prop=" + PROP_MODEL)
         onLog("ENVIRONMENT_READY")
         onLog("MAIN_LIGHT_READY intensity=100000")
+        onLog("FILL_LIGHT_READY intensity=30000")
+        onLog("SURFACE_TYPE=Texture")
     }
 
     LaunchedEffect(player, zombie, prop) {
-        onLog(
-            "MODELS_STATE player=" + (player != null) +
-                " zombie=" + (zombie != null) +
-                " prop=" + (prop != null)
-        )
-        if (player != null && zombie != null && prop != null) {
-            sceneReady = true
-            onLog("SCENE_READY_ALL_MODELS")
-        }
+        onLog("MODELS_STATE player=" + (player != null) + " zombie=" + (zombie != null) + " prop=" + (prop != null))
+        if (player != null && zombie != null && prop != null) onLog("SCENE_READY_ALL_MODELS")
     }
 
     Box(Modifier.fillMaxSize()) {
         SceneView(
             modifier = Modifier.fillMaxSize(),
+            surfaceType = SurfaceType.Texture,
             engine = engine,
             modelLoader = modelLoader,
             environment = environment,
             mainLightNode = mainLightNode,
+            fillLightNode = fillLightNode,
             cameraManipulator = cameraManipulator,
             isOpaque = true,
+            isRendering = true,
             autoCenterContent = true,
             autoFitContent = false
         ) {
-            player?.let {
-                ModelNode(
-                    modelInstance = it,
-                    scaleToUnits = 1.8f,
-                    autoAnimate = true
-                )
-            }
-            zombie?.let {
-                ModelNode(
-                    modelInstance = it,
-                    scaleToUnits = 1.8f,
-                    autoAnimate = true
-                )
-            }
-            prop?.let {
-                ModelNode(
-                    modelInstance = it,
-                    scaleToUnits = 1.4f,
-                    autoAnimate = false
-                )
-            }
-        }
-
-        if (!sceneReady) {
-            Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("LOADING WORLD", color = Color.White)
-            }
+            player?.let { ModelNode(modelInstance = it, scaleToUnits = 1.8f, autoAnimate = true) }
+            zombie?.let { ModelNode(modelInstance = it, scaleToUnits = 1.8f, autoAnimate = true) }
+            prop?.let { ModelNode(modelInstance = it, scaleToUnits = 1.4f, autoAnimate = false) }
         }
 
         Button(
-            onClick = {
-                onLog("GAME_MENU_CLICKED")
-                onExit()
-            },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(18.dp)
-        ) {
-            Text("MENU")
-        }
+            onClick = { onLog("GAME_MENU_CLICKED"); onExit() },
+            modifier = Modifier.align(Alignment.TopEnd).padding(18.dp)
+        ) { Text("MENU") }
     }
 }
