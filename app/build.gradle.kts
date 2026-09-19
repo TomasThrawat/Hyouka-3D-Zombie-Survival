@@ -4,6 +4,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 android {
     namespace = "com.tomasthrawat.hyouka3dzombie"
     compileSdk = 36
@@ -12,23 +14,21 @@ android {
         applicationId = "com.tomasthrawat.hyouka3dzombie"
         minSdk = 28
         targetSdk = 36
-        versionCode = 6
-        versionName = "6.0"
+        versionCode = 7
+        versionName = "7.0"
     }
 
     buildFeatures { compose = true }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.4.10"
-    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
 }
 
