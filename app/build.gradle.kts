@@ -12,14 +12,14 @@ android {
         applicationId = "com.tomasthrawat.hyouka3dzombie"
         minSdk = 28
         targetSdk = 36
-        versionCode = 3
-        versionName = "3.0"
+        versionCode = 4
+        versionName = "4.0"
     }
 
     buildFeatures { compose = true }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "2.2.21"
+        kotlinCompilerExtensionVersion = "2.4.10"
     }
 
     compileOptions {
@@ -36,5 +36,5 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.9.1")
     implementation("androidx.compose.ui:ui-tooling-preview:1.9.1")
     implementation("androidx.compose.material3:material3:1.3.2")
-    implementation("io.github.sceneview:sceneview:4.25.0")
+    implementation("io.github.sceneview:sceneview:4.26.0")
 }
