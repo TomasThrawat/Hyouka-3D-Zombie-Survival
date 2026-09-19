@@ -131,7 +131,6 @@ fun ZombieGameScreen(
             fillLightNode = fillLightNode,
             cameraManipulator = cameraManipulator,
             isOpaque = true,
-            isRendering = true,
             autoCenterContent = true,
             autoFitContent = false
         ) {
