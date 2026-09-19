@@ -71,13 +71,7 @@ fun ZombieGameScreen(
     val environment = rememberEnvironment(environmentLoader) {
         createEnvironment(environmentLoader)
     }
-
-    // SceneView 4.36 fixes frame scheduling when nodes are attached to a live scene.
-    // Give the main camera an explicit orbit radius so it never starts at the origin.
-    val cameraManipulator = rememberCameraManipulator(
-        orbitRadius = 6.0f
-    )
-
+    val cameraManipulator = rememberCameraManipulator()
     val mainLightNode = rememberMainLightNode(engine) {
         intensity = 100_000f
     }
@@ -91,21 +85,21 @@ fun ZombieGameScreen(
 
     LaunchedEffect(Unit) {
         onLog("GAME_RENDER_BEGIN")
-        onLog("RENDER_MODE=sceneview_4_36_bundled_assets")
-        onLog("SCENEVIEW_VERSION=4.36.0")
+        onLog("RENDER_MODE=sceneview_4_26_bundled_assets")
+        onLog("SCENEVIEW_VERSION=4.26.0")
         onLog("MODEL_PATHS player=$PLAYER_MODEL zombie=$ZOMBIE_MODEL prop=$PROP_MODEL")
         onLog("ENVIRONMENT_READY")
         onLog("MAIN_LIGHT_READY intensity=100000")
         onLog("FILL_LIGHT_READY intensity=30000")
         onLog("SURFACE_TYPE=DEFAULT_SURFACE")
-        onLog("CAMERA_MODE=ORBIT_RADIUS_6M")
+        onLog("CAMERA_MODE=DEFAULT_MANIPULATOR")
     }
 
     LaunchedEffect(player, zombie, prop) {
         if (player != null && zombie != null && prop != null) {
             onLog("SCENE_READY_ALL_MODELS")
+            return@LaunchedEffect
         }
-        if (player != null && zombie != null && prop != null) return@LaunchedEffect
 
         var tick = 0
         while (tick < 60) {
@@ -135,8 +129,8 @@ fun ZombieGameScreen(
                 fillLightNode = fillLightNode,
                 cameraManipulator = cameraManipulator,
                 isOpaque = true,
-                autoCenterContent = false,
-                autoFitContent = false
+                autoCenterContent = true,
+                autoFitContent = true
             ) {
                 player?.let {
                     ModelNode(

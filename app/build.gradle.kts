@@ -78,5 +78,5 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.9.1")
     implementation("androidx.compose.ui:ui-tooling-preview:1.9.1")
     implementation("androidx.compose.material3:material3:1.3.2")
-    implementation("io.github.sceneview:sceneview:4.36.0")
+    implementation("io.github.sceneview:sceneview:4.26.0")
 }
