@@ -7,18 +7,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
+import io.github.sceneview.createEnvironment
 import io.github.sceneview.node.ModelNode
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
+import io.github.sceneview.rememberEnvironment
+import io.github.sceneview.rememberEnvironmentLoader
+import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.rememberModelLoader
 
@@ -46,37 +46,52 @@ fun ZombieGameScreen(
 
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
+    val environmentLoader = rememberEnvironmentLoader(engine)
+    val environment = rememberEnvironment(environmentLoader) {
+        environmentLoader.createHDREnvironment("environments/neutral/neutral_ibl.ktx")
+            ?: createEnvironment(environmentLoader)
+    }
     val cameraManipulator = rememberCameraManipulator()
-
-    val player = rememberModelInstance(modelLoader, PLAYER_MODEL)
-    val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
-    val prop = rememberModelInstance(modelLoader, PROP_MODEL)
-
-    var yaw by remember { mutableFloatStateOf(0f) }
+    val mainLightNode = rememberMainLightNode(engine) {
+        intensity = 300_000f
+    }
 
     Box(Modifier.fillMaxSize()) {
         SceneView(
             modifier = Modifier.fillMaxSize(),
             engine = engine,
             modelLoader = modelLoader,
+            environmentLoader = environmentLoader,
+            environment = environment,
             cameraManipulator = cameraManipulator,
-            autoCenterContent = true
+            mainLightNode = mainLightNode
         ) {
-            player?.let {
+            rememberModelInstance(
+                modelLoader = modelLoader,
+                fileLocation = PLAYER_MODEL
+            )?.let {
                 ModelNode(
                     modelInstance = it,
                     scaleToUnits = 1.8f,
                     autoAnimate = true
                 )
             }
-            zombie?.let {
+
+            rememberModelInstance(
+                modelLoader = modelLoader,
+                fileLocation = ZOMBIE_MODEL
+            )?.let {
                 ModelNode(
                     modelInstance = it,
                     scaleToUnits = 1.8f,
                     autoAnimate = true
                 )
             }
-            prop?.let {
+
+            rememberModelInstance(
+                modelLoader = modelLoader,
+                fileLocation = PROP_MODEL
+            )?.let {
                 ModelNode(
                     modelInstance = it,
                     scaleToUnits = 1.4f
