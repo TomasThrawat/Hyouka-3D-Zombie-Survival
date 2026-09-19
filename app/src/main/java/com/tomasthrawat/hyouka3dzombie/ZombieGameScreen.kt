@@ -28,6 +28,7 @@ import io.github.sceneview.rememberFillLightNode
 import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.rememberModelLoader
+import io.github.sceneview.math.Position
 import io.github.sceneview.node.ModelNode
 import kotlinx.coroutines.delay
 
@@ -42,11 +43,13 @@ fun ZombieGameScreen(
     onExit: () -> Unit,
     onLog: (String) -> Unit
 ) {
-    LaunchedEffect(playing) { onLog("SCREEN_STATE playing=" + playing) }
+    LaunchedEffect(playing) {
+        onLog("SCREEN_STATE playing=$playing")
+    }
 
     if (!playing) {
         Box(
-            Modifier.fillMaxSize().background(Color.Black),
+            modifier = Modifier.fillMaxSize().background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
             Button(
@@ -69,8 +72,12 @@ fun ZombieGameScreen(
         createEnvironment(environmentLoader)
     }
     val cameraManipulator = rememberCameraManipulator()
-    val mainLightNode = rememberMainLightNode(engine) { intensity = 100_000f }
-    val fillLightNode = rememberFillLightNode(engine) { intensity = 30_000f }
+    val mainLightNode = rememberMainLightNode(engine) {
+        intensity = 100_000f
+    }
+    val fillLightNode = rememberFillLightNode(engine) {
+        intensity = 30_000f
+    }
 
     val player = rememberModelInstance(modelLoader, PLAYER_MODEL)
     val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
@@ -80,32 +87,12 @@ fun ZombieGameScreen(
 
     LaunchedEffect(Unit) {
         onLog("GAME_RENDER_BEGIN")
-        onLog("RENDER_MODE=sceneview_bundled_assets_default_surface")
-        onLog("MODEL_PATHS player=" + PLAYER_MODEL + " zombie=" + ZOMBIE_MODEL + " prop=" + PROP_MODEL)
+        onLog("RENDER_MODE=sceneview_bundled_assets_explicit_positions")
+        onLog("MODEL_PATHS player=$PLAYER_MODEL zombie=$ZOMBIE_MODEL prop=$PROP_MODEL")
         onLog("ENVIRONMENT_READY")
         onLog("MAIN_LIGHT_READY intensity=100000")
         onLog("FILL_LIGHT_READY intensity=30000")
         onLog("SURFACE_TYPE=DEFAULT_SURFACE")
-    }
-
-    LaunchedEffect(Unit) {
-        var tick = 0
-        while (true) {
-            delay(500)
-            val state = "player=" + (player != null) + ",zombie=" + (zombie != null) + ",prop=" + (prop != null)
-            if (state != lastPollState || tick % 4 == 0) {
-                lastPollState = state
-                onLog("MODEL_POLL tick=" + tick + " elapsedMs=" + ((tick + 1) * 500) + " " + state)
-            }
-            if (player != null && zombie != null && prop != null) {
-                onLog("MODEL_POLL_COMPLETE tick=" + tick)
-                break
-            }
-            if (tick++ >= 59) {
-                onLog("MODEL_POLL_TIMEOUT elapsedMs=30000")
-                break
-            }
-        }
     }
 
     LaunchedEffect(player, zombie, prop) {
@@ -117,38 +104,81 @@ fun ZombieGameScreen(
         if (player != null && zombie != null && prop != null) {
             onLog("SCENE_READY_ALL_MODELS")
         }
+
+        var tick = 0
+        while (true) {
+            delay(500)
+            val state =
+                "player=" + (player != null) +
+                    ",zombie=" + (zombie != null) +
+                    ",prop=" + (prop != null)
+            if (state != lastPollState || tick % 4 == 0) {
+                lastPollState = state
+                onLog("MODEL_POLL tick=$tick elapsedMs=" + ((tick + 1) * 500) + " $state")
+            }
+            tick++
+            if (player != null && zombie != null && prop != null) {
+                break
+            }
+            if (tick >= 60) {
+                onLog("MODEL_POLL_TIMEOUT elapsedMs=30000")
+                break
+            }
+        }
     }
 
-    Box(
-        Modifier.fillMaxSize().onSizeChanged {
-            onLog("VIEWPORT_SIZE width=" + it.width + " height=" + it.height)
-        }
-    ) {
-        SceneView(
-            modifier = Modifier.fillMaxSize(),
-            engine = engine,
-            modelLoader = modelLoader,
-            environment = environment,
-            mainLightNode = mainLightNode,
-            fillLightNode = fillLightNode,
-            cameraManipulator = cameraManipulator,
-            isOpaque = true,
-            autoCenterContent = true,
-            autoFitContent = true
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged {
+                    onLog("VIEWPORT_SIZE width=" + it.width + " height=" + it.height)
+                }
         ) {
-            player?.let {
-                ModelNode(modelInstance = it, scaleToUnits = 1.8f, autoAnimate = true)
-            }
-            zombie?.let {
-                ModelNode(modelInstance = it, scaleToUnits = 1.8f, autoAnimate = true)
-            }
-            prop?.let {
-                ModelNode(modelInstance = it, scaleToUnits = 1.4f, autoAnimate = false)
+            SceneView(
+                modifier = Modifier.fillMaxSize(),
+                engine = engine,
+                modelLoader = modelLoader,
+                environment = environment,
+                mainLightNode = mainLightNode,
+                fillLightNode = fillLightNode,
+                cameraManipulator = cameraManipulator,
+                isOpaque = true,
+                autoCenterContent = true,
+                autoFitContent = true
+            ) {
+                player?.let {
+                    ModelNode(
+                        modelInstance = it,
+                        position = Position(x = 0.0f, y = 0.0f, z = 0.0f),
+                        scaleToUnits = 1.8f,
+                        autoAnimate = true
+                    )
+                }
+                zombie?.let {
+                    ModelNode(
+                        modelInstance = it,
+                        position = Position(x = 2.8f, y = 0.0f, z = -3.5f),
+                        scaleToUnits = 1.8f,
+                        autoAnimate = true
+                    )
+                }
+                prop?.let {
+                    ModelNode(
+                        modelInstance = it,
+                        position = Position(x = -2.8f, y = 0.0f, z = -3.5f),
+                        scaleToUnits = 1.4f,
+                        autoAnimate = false
+                    )
+                }
             }
         }
 
         if (player == null || zombie == null || prop == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("LOADING WORLD", color = Color.White)
             }
         }
