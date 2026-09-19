@@ -83,47 +83,31 @@ fun ZombieGameScreen(
     val zombie = rememberModelInstance(modelLoader, ZOMBIE_MODEL)
     val prop = rememberModelInstance(modelLoader, PROP_MODEL)
 
-    var lastPollState by remember { mutableStateOf("") }
-
     LaunchedEffect(Unit) {
         onLog("GAME_RENDER_BEGIN")
-        onLog("RENDER_MODE=sceneview_bundled_assets_explicit_positions")
+        onLog("RENDER_MODE=sceneview_bundled_assets_default_camera")
         onLog("MODEL_PATHS player=$PLAYER_MODEL zombie=$ZOMBIE_MODEL prop=$PROP_MODEL")
         onLog("ENVIRONMENT_READY")
         onLog("MAIN_LIGHT_READY intensity=100000")
         onLog("FILL_LIGHT_READY intensity=30000")
         onLog("SURFACE_TYPE=DEFAULT_SURFACE")
+        onLog("CAMERA_MODE=DEFAULT_MANIPULATOR")
     }
 
     LaunchedEffect(player, zombie, prop) {
-        onLog(
-            "MODELS_STATE player=" + (player != null) +
-                " zombie=" + (zombie != null) +
-                " prop=" + (prop != null)
-        )
         if (player != null && zombie != null && prop != null) {
             onLog("SCENE_READY_ALL_MODELS")
         }
+        if (player != null && zombie != null && prop != null) return@LaunchedEffect
 
         var tick = 0
-        while (true) {
+        while (tick < 60) {
             delay(500)
-            val state =
-                "player=" + (player != null) +
-                    ",zombie=" + (zombie != null) +
-                    ",prop=" + (prop != null)
-            if (state != lastPollState || tick % 4 == 0) {
-                lastPollState = state
-                onLog("MODEL_POLL tick=$tick elapsedMs=" + ((tick + 1) * 500) + " $state")
+            if (player != null && zombie != null && prop != null) {
+                onLog("MODEL_POLL_READY elapsedMs=" + ((tick + 1) * 500))
+                break
             }
             tick++
-            if (player != null && zombie != null && prop != null) {
-                break
-            }
-            if (tick >= 60) {
-                onLog("MODEL_POLL_TIMEOUT elapsedMs=30000")
-                break
-            }
         }
     }
 
@@ -144,8 +128,8 @@ fun ZombieGameScreen(
                 fillLightNode = fillLightNode,
                 cameraManipulator = cameraManipulator,
                 isOpaque = true,
-                autoCenterContent = true,
-                autoFitContent = true
+                autoCenterContent = false,
+                autoFitContent = false
             ) {
                 player?.let {
                     ModelNode(
@@ -158,7 +142,7 @@ fun ZombieGameScreen(
                 zombie?.let {
                     ModelNode(
                         modelInstance = it,
-                        position = Position(x = 2.8f, y = 0.0f, z = -3.5f),
+                        position = Position(x = 1.8f, y = 0.0f, z = -2.8f),
                         scaleToUnits = 1.8f,
                         autoAnimate = true
                     )
@@ -166,7 +150,7 @@ fun ZombieGameScreen(
                 prop?.let {
                     ModelNode(
                         modelInstance = it,
-                        position = Position(x = -2.8f, y = 0.0f, z = -3.5f),
+                        position = Position(x = -1.8f, y = 0.0f, z = -2.8f),
                         scaleToUnits = 1.4f,
                         autoAnimate = false
                     )
