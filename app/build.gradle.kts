@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +14,8 @@ android {
         applicationId = "com.tomasthrawat.hyouka3dzombie"
         minSdk = 28
         targetSdk = 36
-        versionCode = 4
-        versionName = "4.0"
+        versionCode = 5
+        versionName = "5.0"
     }
 
     buildFeatures { compose = true }
@@ -27,7 +29,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions { jvmTarget = "17" }
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
